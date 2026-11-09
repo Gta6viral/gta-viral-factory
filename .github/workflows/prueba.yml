@@ -29,18 +29,22 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Generar vídeo GTA 6
+      - name: Generar contenido GTA 6
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
         run: python main.py
 
-      - name: Guardar guion y vídeo
+      - name: Guardar contenido generado
         uses: actions/upload-artifact@v4
         with:
-          name: gta-viral-factory
+          name: GTA-Viral-Factory
           path: |
             guion_gta6.txt
+            escenas_gta6.txt
+            voz.mp3
+            subtitulos.srt
             video_gta6.mp4
+            publicacion_gta6.txt
             credito_pixabay.txt
           retention-days: 7
