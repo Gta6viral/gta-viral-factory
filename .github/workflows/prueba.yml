@@ -27,6 +27,7 @@ jobs:
       - name: Generar guion GTA 6
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
         run: python main.py
 
       - name: Guardar guion generado
