@@ -32,7 +32,6 @@ jobs:
       - name: Generar contenido GTA 6
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
         run: python main.py
 
       - name: Guardar contenido generado
@@ -42,6 +41,7 @@ jobs:
           path: |
             guion_gta6.txt
             escenas_gta6.txt
+            fuentes_gta6.txt
             voz.mp3
             subtitulos.srt
             video_gta6.mp4
