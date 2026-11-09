@@ -46,5 +46,4 @@ jobs:
             subtitulos.srt
             video_gta6.mp4
             publicacion_gta6.txt
-            credito_pixabay.txt
           retention-days: 7
