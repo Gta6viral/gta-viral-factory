@@ -1,4 +1,4 @@
 google-genai
-requests
 moviepy==2.2.1
-gTTS
+edge-tts
+Pillow
