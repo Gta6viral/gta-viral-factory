@@ -1,15 +1,14 @@
-
 import os
 import re
-import requests
+import asyncio
 from pathlib import Path
-from datetime import datetime
+
+import edge_tts
 
 from google import genai
-from gtts import gTTS
 
 from moviepy import (
-    VideoFileClip,
+    ImageClip,
     AudioFileClip,
     TextClip,
     CompositeVideoClip,
@@ -21,7 +20,6 @@ from moviepy import (
 # CONFIGURACION
 # =====================================
 
-CARPETA = Path(".")
 CARPETA_ASSETS = Path("assets/gta6")
 
 MODELO = "gemini-3.5-flash-lite"
@@ -30,6 +28,9 @@ ANCHO = 1080
 ALTO = 1920
 
 FUENTE = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+
+# Voz neuronal española
+VOZ = "es-ES-AlvaroNeural"
 
 
 # =====================================
@@ -141,11 +142,15 @@ No añadas explicaciones fuera de estos apartados.
     if not titulo:
         titulo = "GTA 6: DETALLES QUE DEBES CONOCER"
 
-    with open("guion_gta6.txt", "w", encoding="utf-8") as archivo:
-        archivo.write(texto)
+    Path("guion_gta6.txt").write_text(
+        texto,
+        encoding="utf-8"
+    )
 
-    with open("escenas_gta6.txt", "w", encoding="utf-8") as archivo:
-        archivo.write(escenas)
+    Path("escenas_gta6.txt").write_text(
+        escenas,
+        encoding="utf-8"
+    )
 
     print("Guion generado correctamente.")
 
@@ -153,60 +158,126 @@ No añadas explicaciones fuera de estos apartados.
 
 
 # =====================================
-# DESCARGAR FONDO PROVISIONAL
+# GENERAR VOZ NEURONAL
 # =====================================
 
-def descargar_video():
+async def generar_voz_async(texto):
 
-    api_key = os.getenv("PIXABAY_API_KEY")
-
-    if not api_key:
-        raise RuntimeError("Falta PIXABAY_API_KEY")
-
-    print("Buscando fondo de vídeo...")
-
-    url = "https://pixabay.com/api/videos/"
-
-    parametros = {
-        "key": api_key,
-        "q": "miami neon night cars",
-        "per_page": 3,
-        "safesearch": "true",
-        "video_type": "film"
-    }
-
-    respuesta = requests.get(
-        url,
-        params=parametros,
-        timeout=30
+    comunicacion = edge_tts.Communicate(
+        text=texto,
+        voice=VOZ,
+        rate="+8%",
+        pitch="+0Hz"
     )
 
-    respuesta.raise_for_status()
+    await comunicacion.save("voz.mp3")
 
-    resultados = respuesta.json().get("hits", [])
 
-    if not resultados:
-        raise RuntimeError("Pixabay no ha encontrado vídeos.")
+def generar_voz(texto):
 
-    video = resultados[0]
+    print("Generando voz neuronal española...")
 
-    video_url = video["videos"]["medium"]["url"]
+    asyncio.run(generar_voz_async(texto))
 
-    descarga = requests.get(video_url, timeout=90)
-    descarga.raise_for_status()
+    print("Voz generada correctamente.")
 
-    with open("fondo.mp4", "wb") as archivo:
-        archivo.write(descarga.content)
 
-    with open("credito_pixabay.txt", "w", encoding="utf-8") as archivo:
-        archivo.write(
-            "Vídeo de Pixabay\n"
-            + video["pageURL"]
-            + "\nAutor: "
-            + video["user"]
+# =====================================
+# BUSCAR IMAGENES DE GTA VI
+# =====================================
+
+def buscar_imagenes():
+
+    if not CARPETA_ASSETS.exists():
+        raise RuntimeError(
+            "No existe la carpeta assets/gta6."
         )
 
-    print("Fondo descargado.")
+    extensiones = [
+        "*.jpg",
+        "*.jpeg",
+        "*.png",
+        "*.webp"
+    ]
+
+    imagenes = []
+
+    for extension in extensiones:
+        imagenes.extend(
+            CARPETA_ASSETS.glob(extension)
+        )
+
+    imagenes = sorted(imagenes)
+
+    if not imagenes:
+        raise RuntimeError(
+            "No hay imágenes dentro de assets/gta6. "
+            "Comprueba que las has subido a GitHub."
+        )
+
+    print(f"Se han encontrado {len(imagenes)} imágenes.")
+
+    return imagenes
+
+
+# =====================================
+# PREPARAR UNA IMAGEN EN FORMATO VERTICAL
+# =====================================
+
+def preparar_imagen(ruta, duracion):
+
+    imagen = ImageClip(str(ruta)).with_duration(duracion)
+
+    imagen = imagen.resized(height=ALTO)
+
+    if imagen.w < ANCHO:
+        imagen = imagen.resized(width=ANCHO)
+
+    x1 = max(0, (imagen.w - ANCHO) / 2)
+    y1 = max(0, (imagen.h - ALTO) / 2)
+
+    imagen = imagen.cropped(
+        x1=x1,
+        y1=y1,
+        x2=x1 + ANCHO,
+        y2=y1 + ALTO
+    )
+
+    return imagen
+
+
+# =====================================
+# CREAR FONDO CON LAS IMAGENES
+# =====================================
+
+def preparar_fondo(duracion):
+
+    imagenes = buscar_imagenes()
+
+    tiempo_por_imagen = duracion / len(imagenes)
+
+    clips = []
+
+    for numero, imagen in enumerate(imagenes, start=1):
+
+        print(
+            f"Preparando imagen {numero}/{len(imagenes)}: "
+            f"{imagen.name}"
+        )
+
+        clip = preparar_imagen(
+            imagen,
+            tiempo_por_imagen
+        )
+
+        clips.append(clip)
+
+    fondo = concatenate_videoclips(
+        clips,
+        method="compose"
+    )
+
+    return fondo, clips
 
 
 # =====================================
@@ -219,7 +290,9 @@ def dividir_subtitulos(texto):
     fragmentos = []
 
     for i in range(0, len(palabras), 6):
-        fragmentos.append(" ".join(palabras[i:i + 6]))
+        fragmentos.append(
+            " ".join(palabras[i:i + 6])
+        )
 
     return fragmentos
 
@@ -239,13 +312,22 @@ def tiempo_srt(segundos):
 
 def guardar_subtitulos(fragmentos, duracion):
 
-    total_caracteres = sum(len(x) for x in fragmentos)
+    total_caracteres = sum(
+        len(x) for x in fragmentos
+    )
 
     tiempo_actual = 0
 
-    with open("subtitulos.srt", "w", encoding="utf-8") as archivo:
+    with open(
+        "subtitulos.srt",
+        "w",
+        encoding="utf-8"
+    ) as archivo:
 
-        for numero, frase in enumerate(fragmentos, start=1):
+        for numero, frase in enumerate(
+            fragmentos,
+            start=1
+        ):
 
             tiempo_frase = (
                 duracion * len(frase) / total_caracteres
@@ -255,60 +337,15 @@ def guardar_subtitulos(fragmentos, duracion):
             final = tiempo_actual + tiempo_frase
 
             archivo.write(f"{numero}\n")
+
             archivo.write(
-                f"{tiempo_srt(inicio)} --> {tiempo_srt(final)}\n"
+                f"{tiempo_srt(inicio)} --> "
+                f"{tiempo_srt(final)}\n"
             )
+
             archivo.write(frase + "\n\n")
 
             tiempo_actual = final
-
-
-# =====================================
-# PREPARAR FONDO VERTICAL
-# =====================================
-
-def preparar_fondo(duracion):
-
-    original = VideoFileClip("fondo.mp4")
-
-    if original.duration < duracion:
-
-        repeticiones = int(duracion / original.duration) + 1
-
-        fondo = concatenate_videoclips(
-            [original] * repeticiones
-        )
-
-    else:
-
-        fondo = original
-
-    fondo = fondo.subclipped(0, duracion)
-    fondo = fondo.without_audio()
-
-    fondo = fondo.resized(height=ALTO)
-
-    if fondo.w > ANCHO:
-
-        fondo = fondo.cropped(
-            x1=(fondo.w - ANCHO) / 2,
-            x2=(fondo.w + ANCHO) / 2,
-            y1=0,
-            y2=ALTO
-        )
-
-    else:
-
-        fondo = fondo.resized(width=ANCHO)
-
-        fondo = fondo.cropped(
-            x1=0,
-            x2=ANCHO,
-            y1=(fondo.h - ALTO) / 2,
-            y2=(fondo.h + ALTO) / 2
-        )
-
-    return original, fondo
 
 
 # =====================================
@@ -317,20 +354,12 @@ def preparar_fondo(duracion):
 
 def crear_video(titulo, gancho, narracion):
 
-    print("Generando voz española...")
-
-    voz = gTTS(
-        text=narracion,
-        lang="es",
-        slow=False
-    )
-
-    voz.save("voz.mp3")
+    generar_voz(narracion)
 
     audio = AudioFileClip("voz.mp3")
     duracion = audio.duration
 
-    original, fondo = preparar_fondo(duracion)
+    fondo, clips_imagenes = preparar_fondo(duracion)
 
     capas = [fondo]
 
@@ -384,15 +413,22 @@ def crear_video(titulo, gancho, narracion):
 
     fragmentos = dividir_subtitulos(narracion)
 
-    guardar_subtitulos(fragmentos, duracion)
+    guardar_subtitulos(
+        fragmentos,
+        duracion
+    )
 
-    total_caracteres = sum(len(x) for x in fragmentos)
+    total_caracteres = sum(
+        len(x) for x in fragmentos
+    )
 
     tiempo_actual = 0
 
     for frase in fragmentos:
 
-        tiempo_frase = duracion * len(frase) / total_caracteres
+        tiempo_frase = (
+            duracion * len(frase) / total_caracteres
+        )
 
         subtitulo = TextClip(
             font=FUENTE,
@@ -436,6 +472,8 @@ def crear_video(titulo, gancho, narracion):
 
     capas.append(marca)
 
+    # MONTAR VIDEO
+
     print("Montando vídeo vertical...")
 
     video_final = CompositeVideoClip(
@@ -452,9 +490,14 @@ def crear_video(titulo, gancho, narracion):
         threads=2
     )
 
+    # CERRAR ARCHIVOS
+
     video_final.close()
-    original.close()
+    fondo.close()
     audio.close()
+
+    for clip in clips_imagenes:
+        clip.close()
 
     print("Vídeo terminado.")
 
@@ -471,11 +514,17 @@ def main():
 
     titulo, gancho, narracion, descripcion, hashtags = generar_guion()
 
-    descargar_video()
+    crear_video(
+        titulo,
+        gancho,
+        narracion
+    )
 
-    crear_video(titulo, gancho, narracion)
-
-    with open("publicacion_gta6.txt", "w", encoding="utf-8") as archivo:
+    with open(
+        "publicacion_gta6.txt",
+        "w",
+        encoding="utf-8"
+    ) as archivo:
 
         archivo.write("DESCRIPCION:\n")
         archivo.write(descripcion + "\n\n")
