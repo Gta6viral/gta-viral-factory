@@ -26,3 +26,8 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python main.py
+      - name: Guardar guion generado
+        uses: actions/upload-artifact@v4
+        with:
+          name: guion-gta6
+          path: guion_gta6.txt
