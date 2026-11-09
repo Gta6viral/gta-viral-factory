@@ -1,0 +1,21 @@
+
+name: Prueba GTA Viral Factory
+
+on:
+  workflow_dispatch:
+
+jobs:
+  ejecutar:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar el proyecto
+        uses: actions/checkout@v7
+
+      - name: Preparar Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Ejecutar GTA Viral Factory
+        run: python main.py
