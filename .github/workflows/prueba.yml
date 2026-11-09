@@ -19,20 +19,28 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Instalar FFmpeg y fuentes
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg fonts-dejavu-core
+
       - name: Instalar dependencias
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Generar guion GTA 6
+      - name: Generar vídeo GTA 6
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
         run: python main.py
 
-      - name: Guardar guion generado
+      - name: Guardar guion y vídeo
         uses: actions/upload-artifact@v4
         with:
-          name: guion-gta6
-          path: guion_gta6.txt
+          name: gta-viral-factory
+          path: |
+            guion_gta6.txt
+            video_gta6.mp4
+            credito_pixabay.txt
           retention-days: 7
