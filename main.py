@@ -2,8 +2,12 @@
 import os
 import re
 import requests
-from gtts import gTTS
+from pathlib import Path
+from datetime import datetime
+
 from google import genai
+from gtts import gTTS
+
 from moviepy import (
     VideoFileClip,
     AudioFileClip,
@@ -12,79 +16,171 @@ from moviepy import (
     concatenate_videoclips
 )
 
+
+# =====================================
+# CONFIGURACION
+# =====================================
+
+CARPETA = Path(".")
+CARPETA_ASSETS = Path("assets/gta6")
+
+MODELO = "gemini-3.5-flash-lite"
+
+ANCHO = 1080
+ALTO = 1920
+
+FUENTE = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+
+
+# =====================================
+# GENERAR GUION
+# =====================================
+
+def extraer_seccion(texto, nombre):
+
+    patron = (
+        rf"(?ims)^\s*{re.escape(nombre)}\s*:\s*"
+        rf"(.*?)(?=^\s*[A-ZÁÉÍÓÚÑ ]{{3,}}\s*:|\Z)"
+    )
+
+    resultado = re.search(patron, texto)
+
+    if resultado:
+        return resultado.group(1).strip()
+
+    return ""
+
+
 def generar_guion():
+
     api_key = os.getenv("GEMINI_API_KEY")
-    client = genai.Client(api_key=api_key)
+
+    if not api_key:
+        raise RuntimeError("Falta GEMINI_API_KEY")
+
+    cliente = genai.Client(api_key=api_key)
 
     prompt = """
-    Escribe un guion ORIGINAL para un YouTube Short sobre GTA 6.
-    Español de España. Unos 30 segundos.
-    No inventes rumores ni filtraciones.
+Actúa como un guionista profesional especializado en
+YouTube Shorts, TikTok y GTA 6.
 
-    Devuelve exactamente estos apartados:
+Crea un vídeo ORIGINAL en español de España.
 
-    TÍTULO:
-    Un título llamativo.
+ESTILO:
+- Mezcla de noticias, curiosidades y contenido cinematográfico.
+- Narración muy enérgica y natural.
+- Ritmo rápido.
+- Frases cortas y fáciles de entender.
+- Nada de introducciones aburridas.
 
-    NARRACIÓN:
-    El texto completo que debe decir la voz.
+ESTRUCTURA:
+- Gancho muy potente en los primeros 2 segundos.
+- Explicación interesante.
+- Tres detalles o ideas relevantes.
+- Cierre con una pregunta para conseguir comentarios.
 
-    ESCENAS:
-    Tres ideas visuales.
+DURACIÓN:
+Entre 30 y 40 segundos de narración.
 
-    DESCRIPCIÓN:
-    Una descripción y hashtags.
-    """
+REGLAS IMPORTANTES:
+- No inventes filtraciones.
+- No inventes anuncios de Rockstar.
+- No presentes rumores como hechos.
+- No inventes fechas ni características del juego.
+- Distingue claramente información confirmada de especulación.
+- Si no puedes confirmar una noticia reciente, utiliza una curiosidad
+  o un tema general en lugar de inventar una noticia.
 
-    response = client.models.generate_content(
-        model="gemini-3.5-flash-lite",
+Devuelve EXACTAMENTE estos apartados:
+
+TITULO:
+Un título llamativo.
+
+GANCHO:
+La primera frase que captará la atención.
+
+NARRACION:
+El texto completo que se escuchará en el vídeo.
+Debe sonar natural y enérgico.
+
+ESCENAS:
+Tres ideas visuales relacionadas con GTA 6.
+Una por línea.
+
+DESCRIPCION:
+Descripción para YouTube y TikTok.
+
+HASHTAGS:
+Entre cinco y ocho hashtags.
+
+No añadas explicaciones fuera de estos apartados.
+"""
+
+    print("Conectando con Gemini...")
+
+    respuesta = cliente.models.generate_content(
+        model=MODELO,
         contents=prompt
     )
 
-    texto = response.text
+    texto = respuesta.text
 
-    coincidencia = re.search(
-        r"NARRACIÓN\s*:\s*(.*?)(?=\n\s*ESCENAS\s*:|\n\s*DESCRIPCIÓN\s*:|$)",
-        texto,
-        re.IGNORECASE | re.DOTALL
-    )
+    if not texto:
+        raise RuntimeError("Gemini no ha generado contenido.")
 
-    if not coincidencia:
+    titulo = extraer_seccion(texto, "TITULO")
+    gancho = extraer_seccion(texto, "GANCHO")
+    narracion = extraer_seccion(texto, "NARRACION")
+    escenas = extraer_seccion(texto, "ESCENAS")
+    descripcion = extraer_seccion(texto, "DESCRIPCION")
+    hashtags = extraer_seccion(texto, "HASHTAGS")
+
+    if not narracion:
         raise RuntimeError("No se ha podido extraer la narración.")
 
-    narracion = coincidencia.group(1).strip()
+    if not titulo:
+        titulo = "GTA 6: DETALLES QUE DEBES CONOCER"
 
-    titulo_match = re.search(
-        r"TÍTULO\s*:\s*(.*?)(?=\n\s*NARRACIÓN\s*:|$)",
-        texto,
-        re.IGNORECASE | re.DOTALL
-    )
+    with open("guion_gta6.txt", "w", encoding="utf-8") as archivo:
+        archivo.write(texto)
 
-    titulo = titulo_match.group(1).strip() if titulo_match else "GTA 6"
+    with open("escenas_gta6.txt", "w", encoding="utf-8") as archivo:
+        archivo.write(escenas)
 
-    with open("guion_gta6.txt", "w", encoding="utf-8") as f:
-        f.write(texto)
+    print("Guion generado correctamente.")
 
-    return titulo, narracion
+    return titulo, gancho, narracion, descripcion, hashtags
 
+
+# =====================================
+# DESCARGAR FONDO PROVISIONAL
+# =====================================
 
 def descargar_video():
+
     api_key = os.getenv("PIXABAY_API_KEY")
 
     if not api_key:
         raise RuntimeError("Falta PIXABAY_API_KEY")
 
+    print("Buscando fondo de vídeo...")
+
     url = "https://pixabay.com/api/videos/"
 
     parametros = {
         "key": api_key,
-        "q": "night city cars",
+        "q": "miami neon night cars",
         "per_page": 3,
         "safesearch": "true",
         "video_type": "film"
     }
 
-    respuesta = requests.get(url, params=parametros, timeout=30)
+    respuesta = requests.get(
+        url,
+        params=parametros,
+        timeout=30
+    )
+
     respuesta.raise_for_status()
 
     resultados = respuesta.json().get("hits", [])
@@ -93,89 +189,258 @@ def descargar_video():
         raise RuntimeError("Pixabay no ha encontrado vídeos.")
 
     video = resultados[0]
+
     video_url = video["videos"]["medium"]["url"]
 
-    descarga = requests.get(video_url, timeout=60)
+    descarga = requests.get(video_url, timeout=90)
     descarga.raise_for_status()
 
-    with open("fondo.mp4", "wb") as f:
-        f.write(descarga.content)
+    with open("fondo.mp4", "wb") as archivo:
+        archivo.write(descarga.content)
 
-    with open("credito_pixabay.txt", "w", encoding="utf-8") as f:
-        f.write(
+    with open("credito_pixabay.txt", "w", encoding="utf-8") as archivo:
+        archivo.write(
             "Vídeo de Pixabay\n"
             + video["pageURL"]
             + "\nAutor: "
             + video["user"]
         )
 
+    print("Fondo descargado.")
 
-def crear_video(titulo, narracion):
-    voz = gTTS(text=narracion, lang="es")
+
+# =====================================
+# PREPARAR SUBTITULOS
+# =====================================
+
+def dividir_subtitulos(texto):
+
+    palabras = texto.split()
+    fragmentos = []
+
+    for i in range(0, len(palabras), 6):
+        fragmentos.append(" ".join(palabras[i:i + 6]))
+
+    return fragmentos
+
+
+def tiempo_srt(segundos):
+
+    horas = int(segundos // 3600)
+    minutos = int((segundos % 3600) // 60)
+    segundos_enteros = int(segundos % 60)
+    milisegundos = int((segundos % 1) * 1000)
+
+    return (
+        f"{horas:02}:{minutos:02}:{segundos_enteros:02},"
+        f"{milisegundos:03}"
+    )
+
+
+def guardar_subtitulos(fragmentos, duracion):
+
+    total_caracteres = sum(len(x) for x in fragmentos)
+
+    tiempo_actual = 0
+
+    with open("subtitulos.srt", "w", encoding="utf-8") as archivo:
+
+        for numero, frase in enumerate(fragmentos, start=1):
+
+            tiempo_frase = (
+                duracion * len(frase) / total_caracteres
+            )
+
+            inicio = tiempo_actual
+            final = tiempo_actual + tiempo_frase
+
+            archivo.write(f"{numero}\n")
+            archivo.write(
+                f"{tiempo_srt(inicio)} --> {tiempo_srt(final)}\n"
+            )
+            archivo.write(frase + "\n\n")
+
+            tiempo_actual = final
+
+
+# =====================================
+# PREPARAR FONDO VERTICAL
+# =====================================
+
+def preparar_fondo(duracion):
+
+    original = VideoFileClip("fondo.mp4")
+
+    if original.duration < duracion:
+
+        repeticiones = int(duracion / original.duration) + 1
+
+        fondo = concatenate_videoclips(
+            [original] * repeticiones
+        )
+
+    else:
+
+        fondo = original
+
+    fondo = fondo.subclipped(0, duracion)
+    fondo = fondo.without_audio()
+
+    fondo = fondo.resized(height=ALTO)
+
+    if fondo.w > ANCHO:
+
+        fondo = fondo.cropped(
+            x1=(fondo.w - ANCHO) / 2,
+            x2=(fondo.w + ANCHO) / 2,
+            y1=0,
+            y2=ALTO
+        )
+
+    else:
+
+        fondo = fondo.resized(width=ANCHO)
+
+        fondo = fondo.cropped(
+            x1=0,
+            x2=ANCHO,
+            y1=(fondo.h - ALTO) / 2,
+            y2=(fondo.h + ALTO) / 2
+        )
+
+    return original, fondo
+
+
+# =====================================
+# CREAR VIDEO
+# =====================================
+
+def crear_video(titulo, gancho, narracion):
+
+    print("Generando voz española...")
+
+    voz = gTTS(
+        text=narracion,
+        lang="es",
+        slow=False
+    )
+
     voz.save("voz.mp3")
 
     audio = AudioFileClip("voz.mp3")
     duracion = audio.duration
 
-    fondo_original = VideoFileClip("fondo.mp4")
+    original, fondo = preparar_fondo(duracion)
 
-    if fondo_original.duration < duracion:
-        repeticiones = int(duracion / fondo_original.duration) + 1
-        fondo = concatenate_videoclips(
-            [fondo_original] * repeticiones
-        )
-    else:
-        fondo = fondo_original
+    capas = [fondo]
 
-    fondo = fondo.subclipped(0, duracion)
-    fondo = fondo.without_audio()
-    fondo = fondo.resized(height=1920)
-
-    if fondo.w >= 1080:
-        fondo = fondo.cropped(
-            x1=(fondo.w - 1080) / 2,
-            x2=(fondo.w + 1080) / 2,
-            y1=0,
-            y2=1920
-        )
-    else:
-        fondo = fondo.resized(width=1080)
-        fondo = fondo.cropped(
-            x1=0,
-            x2=1080,
-            y1=(fondo.h - 1920) / 2,
-            y2=(fondo.h + 1920) / 2
-        )
-
-    fuente = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+    # TITULO INICIAL
 
     texto_titulo = TextClip(
-        font=fuente,
-        text=titulo[:90],
-        font_size=65,
+        font=FUENTE,
+        text=titulo[:100],
+        font_size=68,
         color="yellow",
         stroke_color="black",
-        stroke_width=3,
+        stroke_width=4,
         method="caption",
-        size=(980, 300),
+        size=(980, 350),
         text_align="center"
-    ).with_duration(min(6, duracion)).with_position(("center", 150))
+    )
 
-    texto_narracion = TextClip(
-        font=fuente,
-        text=narracion,
-        font_size=38,
+    texto_titulo = (
+        texto_titulo
+        .with_duration(min(4, duracion))
+        .with_position(("center", 180))
+    )
+
+    capas.append(texto_titulo)
+
+    # GANCHO
+
+    if gancho:
+
+        texto_gancho = TextClip(
+            font=FUENTE,
+            text=gancho[:120],
+            font_size=48,
+            color="white",
+            stroke_color="black",
+            stroke_width=3,
+            method="caption",
+            size=(940, 250),
+            text_align="center"
+        )
+
+        texto_gancho = (
+            texto_gancho
+            .with_duration(min(4, duracion))
+            .with_position(("center", 650))
+        )
+
+        capas.append(texto_gancho)
+
+    # SUBTITULOS
+
+    fragmentos = dividir_subtitulos(narracion)
+
+    guardar_subtitulos(fragmentos, duracion)
+
+    total_caracteres = sum(len(x) for x in fragmentos)
+
+    tiempo_actual = 0
+
+    for frase in fragmentos:
+
+        tiempo_frase = duracion * len(frase) / total_caracteres
+
+        subtitulo = TextClip(
+            font=FUENTE,
+            text=frase,
+            font_size=48,
+            color="white",
+            stroke_color="black",
+            stroke_width=4,
+            method="caption",
+            size=(960, 230),
+            text_align="center"
+        )
+
+        subtitulo = (
+            subtitulo
+            .with_start(tiempo_actual)
+            .with_duration(tiempo_frase)
+            .with_position(("center", 1450))
+        )
+
+        capas.append(subtitulo)
+
+        tiempo_actual += tiempo_frase
+
+    # MARCA DEL CANAL
+
+    marca = TextClip(
+        font=FUENTE,
+        text="GTA VIRAL FACTORY",
+        font_size=27,
         color="white",
         stroke_color="black",
-        stroke_width=2,
-        method="caption",
-        size=(940, 650),
-        text_align="center"
-    ).with_duration(duracion).with_position(("center", "bottom"))
+        stroke_width=2
+    )
+
+    marca = (
+        marca
+        .with_duration(duracion)
+        .with_position(("center", 1840))
+    )
+
+    capas.append(marca)
+
+    print("Montando vídeo vertical...")
 
     video_final = CompositeVideoClip(
-        [fondo, texto_titulo, texto_narracion],
-        size=(1080, 1920)
+        capas,
+        size=(ANCHO, ALTO)
     ).with_duration(duracion).with_audio(audio)
 
     video_final.write_videofile(
@@ -183,27 +448,44 @@ def crear_video(titulo, narracion):
         fps=24,
         codec="libx264",
         audio_codec="aac",
-        preset="ultrafast"
+        preset="ultrafast",
+        threads=2
     )
 
     video_final.close()
-    fondo_original.close()
+    original.close()
     audio.close()
 
+    print("Vídeo terminado.")
+
+
+# =====================================
+# EJECUCION PRINCIPAL
+# =====================================
 
 def main():
-    print("GTA VIRAL FACTORY")
-    print("Generando guion...")
 
-    titulo, narracion = generar_guion()
+    print("================================")
+    print("       GTA VIRAL FACTORY")
+    print("================================")
 
-    print("Buscando vídeo de fondo...")
+    titulo, gancho, narracion, descripcion, hashtags = generar_guion()
+
     descargar_video()
 
-    print("Creando vídeo vertical...")
-    crear_video(titulo, narracion)
+    crear_video(titulo, gancho, narracion)
 
-    print("VÍDEO CREADO CORRECTAMENTE")
+    with open("publicacion_gta6.txt", "w", encoding="utf-8") as archivo:
+
+        archivo.write("DESCRIPCION:\n")
+        archivo.write(descripcion + "\n\n")
+
+        archivo.write("HASHTAGS:\n")
+        archivo.write(hashtags + "\n")
+
+    print("================================")
+    print("GTA VIRAL FACTORY COMPLETADO")
+    print("================================")
 
 
 if __name__ == "__main__":
