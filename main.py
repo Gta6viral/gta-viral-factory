@@ -7,9 +7,13 @@ from pathlib import Path
 
 import edge_tts
 from google import genai
-from google.genai import types
 
-from PIL import Image, ImageOps, ImageFilter, ImageEnhance, ImageDraw
+from PIL import (
+    Image,
+    ImageOps,
+    ImageFilter,
+    ImageEnhance
+)
 
 from moviepy import (
     ImageClip,
@@ -60,7 +64,7 @@ def extraer_seccion(texto, nombre):
 
 
 # =====================================
-# GENERAR GUION CON BUSQUEDA
+# GENERAR GUION SIN GOOGLE SEARCH
 # =====================================
 
 def generar_guion():
@@ -68,7 +72,9 @@ def generar_guion():
     api_key = os.getenv("GEMINI_API_KEY")
 
     if not api_key:
-        raise RuntimeError("Falta GEMINI_API_KEY.")
+        raise RuntimeError(
+            "Falta GEMINI_API_KEY. Comprueba los secretos de GitHub."
+        )
 
     cliente = genai.Client(api_key=api_key)
 
@@ -77,23 +83,29 @@ Actúa como periodista y guionista especializado en GTA 6.
 
 Escribe un vídeo ORIGINAL en español de España.
 
-ANTES DE ESCRIBIR:
-Investiga el tema mediante Google Search.
-Prioriza:
-1. Rockstar Games y sus comunicados oficiales.
-2. Fuentes periodísticas reconocidas.
-3. Información contrastada y actual.
+IMPORTANTE:
+No tienes que utilizar herramientas de búsqueda externas.
+Trabaja únicamente con información que conozcas con suficiente seguridad.
 
 REGLAS DE VERACIDAD:
 - No inventes noticias, fechas, cifras ni características.
 - No presentes rumores como hechos.
 - No confundas información de GTA 5 con GTA 6.
 - No inventes declaraciones de Rockstar.
-- Si una información no está confirmada, indícalo claramente.
-- No utilices una noticia antigua como si fuera reciente.
-- Si no encuentras información fiable, elige una curiosidad
-  que esté respaldada por fuentes fiables.
-- No rellenes huecos con suposiciones.
+- No afirmes que algo es una novedad reciente si no puedes comprobarlo.
+- Prioriza información oficial y características confirmadas.
+- Si no estás seguro de un dato, no lo incluyas.
+- No inventes enlaces ni fuentes.
+- Es preferible una curiosidad confirmada que una noticia dudosa.
+
+TEMAS POSIBLES:
+- Detalles confirmados de GTA 6.
+- Personajes conocidos.
+- Vice City y el estado de Leonida.
+- Información oficial publicada por Rockstar.
+- Comparaciones prudentes con GTA 5.
+- Detalles de los tráileres oficiales.
+- Curiosidades que estén respaldadas por información conocida.
 
 ESTILO:
 - Español de España.
@@ -102,6 +114,7 @@ ESTILO:
 - Frases cortas.
 - Nada de introducciones aburridas.
 - Que parezca un vídeo de un creador especializado.
+- Gancho potente desde la primera frase.
 
 ESTRUCTURA:
 - Gancho potente en los primeros 2 segundos.
@@ -135,33 +148,49 @@ HASHTAGS:
 Entre cinco y ocho hashtags.
 
 FUENTES:
-Nombres y enlaces de las fuentes utilizadas.
+Indica que no se ha realizado una búsqueda web en esta generación.
+No inventes fuentes ni enlaces.
 
-No inventes enlaces ni fuentes.
 No añadas explicaciones fuera de estos apartados.
 """
 
-    print("Buscando información y generando guion...")
+    print("Generando guion con Gemini...")
+    print("Modo gratuito: búsqueda web desactivada.")
 
-    configuracion = types.GenerateContentConfig(
-        tools=[
-            types.Tool(
-                google_search=types.GoogleSearch()
-            )
-        ],
-        temperature=0.7
-    )
+    try:
 
-    respuesta = cliente.models.generate_content(
-        model=MODELO,
-        contents=prompt,
-        config=configuracion
-    )
+        respuesta = cliente.models.generate_content(
+            model=MODELO,
+            contents=prompt
+        )
+
+    except Exception as error:
+
+        mensaje = str(error).lower()
+
+        if (
+            "429" in mensaje
+            or "resource_exhausted" in mensaje
+            or "quota" in mensaje
+        ):
+
+            raise RuntimeError(
+                "GEMINI HA RECHAZADO LA PETICION POR CUOTA. "
+                "Comprueba los límites del proyecto en Google AI Studio. "
+                "Quitar Google Search no elimina los límites de uso "
+                "del propio modelo."
+            ) from None
+
+        raise RuntimeError(
+            f"Error al conectar con Gemini: {error}"
+        ) from None
 
     texto = respuesta.text
 
     if not texto:
-        raise RuntimeError("Gemini no ha generado contenido.")
+        raise RuntimeError(
+            "Gemini no ha generado contenido."
+        )
 
     titulo = extraer_seccion(texto, "TITULO")
     gancho = extraer_seccion(texto, "GANCHO")
@@ -169,13 +198,17 @@ No añadas explicaciones fuera de estos apartados.
     escenas = extraer_seccion(texto, "ESCENAS")
     descripcion = extraer_seccion(texto, "DESCRIPCION")
     hashtags = extraer_seccion(texto, "HASHTAGS")
-    fuentes_texto = extraer_seccion(texto, "FUENTES")
 
     if not narracion:
-        raise RuntimeError("No se ha podido extraer la narración.")
+        raise RuntimeError(
+            "No se ha podido extraer la narración del guion."
+        )
 
     if not titulo:
         titulo = "GTA 6: DETALLES QUE DEBES CONOCER"
+
+    if not gancho:
+        gancho = titulo
 
     Path("guion_gta6.txt").write_text(
         texto,
@@ -187,51 +220,28 @@ No añadas explicaciones fuera de estos apartados.
         encoding="utf-8"
     )
 
-    # Guardar las fuentes devueltas por Gemini
-    fuentes = []
+    with open(
+        "fuentes_gta6.txt",
+        "w",
+        encoding="utf-8"
+    ) as archivo:
 
-    candidatos = getattr(respuesta, "candidates", None) or []
-
-    if candidatos:
-        metadatos = getattr(
-            candidatos[0],
-            "grounding_metadata",
-            None
+        archivo.write(
+            "FUENTES Y VERIFICACION\n\n"
+            "Esta generación no ha utilizado Google Search.\n"
+            "El guion se ha creado con el conocimiento del modelo.\n"
+            "Comprueba los datos y las novedades antes de publicar.\n"
         )
 
-        fragmentos = getattr(
-            metadatos,
-            "grounding_chunks",
-            None
-        ) or []
+    print("Guion generado correctamente.")
 
-        for fragmento in fragmentos:
-
-            web_info = getattr(fragmento, "web", None)
-
-            if web_info:
-                nombre = getattr(web_info, "title", "")
-                url = getattr(web_info, "uri", "")
-
-                if url:
-                    fuentes.append(f"{nombre}: {url}")
-
-    with open("fuentes_gta6.txt", "w", encoding="utf-8") as archivo:
-
-        archivo.write("FUENTES CONSULTADAS\n\n")
-
-        if fuentes:
-            archivo.write("\n".join(fuentes))
-        else:
-            archivo.write(
-                fuentes_texto or
-                "No se han podido recuperar enlaces de las fuentes."
-            )
-
-    print("Guion generado.")
-    print("Fuentes guardadas.")
-
-    return titulo, gancho, narracion, descripcion, hashtags
+    return (
+        titulo,
+        gancho,
+        narracion,
+        descripcion,
+        hashtags
+    )
 
 
 # =====================================
@@ -276,7 +286,9 @@ def generar_voz(texto):
         generar_voz_async(texto)
     )
 
-    print(f"Palabras sincronizadas: {len(palabras)}")
+    print(
+        f"Palabras sincronizadas: {len(palabras)}"
+    )
 
     return palabras
 
@@ -340,14 +352,17 @@ def agrupar_palabras(palabras, duracion):
             "final": final
         })
 
-    # Alternativa por si Edge TTS no devuelve marcas de palabras
+    # Sincronizacion alternativa si no hay marcas de palabras
+
     if not resultado:
 
-        print("Usando sincronización alternativa.")
-
-        texto_completo = Path("guion_gta6.txt").read_text(
-            encoding="utf-8"
+        print(
+            "Usando sincronización alternativa de subtítulos."
         )
+
+        texto_completo = Path(
+            "guion_gta6.txt"
+        ).read_text(encoding="utf-8")
 
         narracion = extraer_seccion(
             texto_completo,
@@ -409,7 +424,10 @@ def guardar_subtitulos(grupos):
         encoding="utf-8"
     ) as archivo:
 
-        for numero, grupo in enumerate(grupos, start=1):
+        for numero, grupo in enumerate(
+            grupos,
+            start=1
+        ):
 
             archivo.write(f"{numero}\n")
 
@@ -418,7 +436,9 @@ def guardar_subtitulos(grupos):
                 f"{tiempo_srt(grupo['final'])}\n"
             )
 
-            archivo.write(grupo["texto"] + "\n\n")
+            archivo.write(
+                grupo["texto"] + "\n\n"
+            )
 
 
 # =====================================
@@ -428,7 +448,10 @@ def guardar_subtitulos(grupos):
 def buscar_imagenes():
 
     if not CARPETA_ASSETS.exists():
-        raise RuntimeError("No existe assets/gta6.")
+
+        raise RuntimeError(
+            "No existe la carpeta assets/gta6."
+        )
 
     extensiones = {
         ".jpg",
@@ -447,11 +470,14 @@ def buscar_imagenes():
     imagenes = sorted(imagenes)
 
     if not imagenes:
+
         raise RuntimeError(
             "No hay imágenes dentro de assets/gta6."
         )
 
-    print(f"Imágenes encontradas: {len(imagenes)}")
+    print(
+        f"Imágenes encontradas: {len(imagenes)}"
+    )
 
     return imagenes
 
@@ -469,6 +495,7 @@ def preparar_imagen(ruta, destino):
         ).convert("RGB")
 
         # Fondo ampliado y desenfocado
+
         fondo = ImageOps.fit(
             imagen,
             (ANCHO, ALTO),
@@ -483,7 +510,8 @@ def preparar_imagen(ruta, destino):
             fondo
         ).enhance(0.38)
 
-        # Imagen principal completa, sin recortarla
+        # Imagen principal completa, sin recortar
+
         principal = ImageOps.contain(
             imagen,
             (1000, 1550),
@@ -493,10 +521,14 @@ def preparar_imagen(ruta, destino):
         x = (ANCHO - principal.width) // 2
         y = (ALTO - principal.height) // 2
 
-        # Panel oscuro discreto detrás de la imagen
+        # Panel oscuro detrás de la imagen
+
         panel = Image.new(
             "RGBA",
-            (principal.width + 24, principal.height + 24),
+            (
+                principal.width + 24,
+                principal.height + 24
+            ),
             (0, 0, 0, 170)
         )
 
@@ -525,7 +557,10 @@ def preparar_todas_las_imagenes():
     imagenes = buscar_imagenes()
 
     if CARPETA_PROCESADAS.exists():
-        shutil.rmtree(CARPETA_PROCESADAS)
+
+        shutil.rmtree(
+            CARPETA_PROCESADAS
+        )
 
     CARPETA_PROCESADAS.mkdir(
         parents=True,
@@ -534,9 +569,15 @@ def preparar_todas_las_imagenes():
 
     procesadas = []
 
-    for numero, imagen in enumerate(imagenes, start=1):
+    for numero, imagen in enumerate(
+        imagenes,
+        start=1
+    ):
 
-        destino = CARPETA_PROCESADAS / f"imagen_{numero:03}.jpg"
+        destino = (
+            CARPETA_PROCESADAS /
+            f"imagen_{numero:03}.jpg"
+        )
 
         print(
             f"Preparando imagen {numero}/{len(imagenes)}: "
@@ -561,7 +602,9 @@ def preparar_fondo(duracion):
 
     imagenes = preparar_todas_las_imagenes()
 
-    tiempo_por_imagen = duracion / len(imagenes)
+    tiempo_por_imagen = (
+        duracion / len(imagenes)
+    )
 
     clips = []
 
@@ -611,7 +654,11 @@ def crear_texto(
 # CREAR VIDEO
 # =====================================
 
-def crear_video(titulo, gancho, narracion):
+def crear_video(
+    titulo,
+    gancho,
+    narracion
+):
 
     palabras = generar_voz(narracion)
 
@@ -619,7 +666,9 @@ def crear_video(titulo, gancho, narracion):
 
     duracion = audio.duration
 
-    fondo, clips_imagenes = preparar_fondo(duracion)
+    fondo, clips_imagenes = preparar_fondo(
+        duracion
+    )
 
     capas = [fondo]
 
@@ -635,8 +684,12 @@ def crear_video(titulo, gancho, narracion):
 
     texto_titulo = (
         texto_titulo
-        .with_duration(min(3.5, duracion))
-        .with_position(("center", 170))
+        .with_duration(
+            min(3.5, duracion)
+        )
+        .with_position(
+            ("center", 170)
+        )
     )
 
     capas.append(texto_titulo)
@@ -655,8 +708,12 @@ def crear_video(titulo, gancho, narracion):
 
         texto_gancho = (
             texto_gancho
-            .with_duration(min(2.7, duracion))
-            .with_position(("center", 530))
+            .with_duration(
+                min(2.7, duracion)
+            )
+            .with_position(
+                ("center", 530)
+            )
         )
 
         capas.append(texto_gancho)
@@ -680,20 +737,28 @@ def crear_video(titulo, gancho, narracion):
             190
         )
 
-        inicio = max(0, grupo["inicio"] - 0.02)
+        inicio = max(
+            0,
+            grupo["inicio"] - 0.02
+        )
 
         final = min(
             duracion,
             grupo["final"] + 0.12
         )
 
-        tiempo = max(0.1, final - inicio)
+        tiempo = max(
+            0.1,
+            final - inicio
+        )
 
         subtitulo = (
             subtitulo
             .with_start(inicio)
             .with_duration(tiempo)
-            .with_position(("center", 1400))
+            .with_position(
+                ("center", 1400)
+            )
         )
 
         capas.append(subtitulo)
@@ -712,7 +777,9 @@ def crear_video(titulo, gancho, narracion):
     marca = (
         marca
         .with_duration(duracion)
-        .with_position(("center", 1815))
+        .with_position(
+            ("center", 1815)
+        )
     )
 
     capas.append(marca)
@@ -748,7 +815,9 @@ def crear_video(titulo, gancho, narracion):
     for clip in clips_imagenes:
         clip.close()
 
-    print("Vídeo terminado correctamente.")
+    print(
+        "Vídeo terminado correctamente."
+    )
 
 
 # =====================================
@@ -766,11 +835,21 @@ def guardar_publicacion(
         encoding="utf-8"
     ) as archivo:
 
-        archivo.write("DESCRIPCION:\n")
-        archivo.write(descripcion + "\n\n")
+        archivo.write(
+            "DESCRIPCION:\n"
+        )
 
-        archivo.write("HASHTAGS:\n")
-        archivo.write(hashtags + "\n")
+        archivo.write(
+            descripcion + "\n\n"
+        )
+
+        archivo.write(
+            "HASHTAGS:\n"
+        )
+
+        archivo.write(
+            hashtags + "\n"
+        )
 
 
 # =====================================
@@ -808,4 +887,16 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+
+    try:
+
+        main()
+
+    except Exception as error:
+
+        print("\n")
+        print("================================")
+        print("       ERROR EN GTA VIRAL FACTORY")
+        print("================================")
+        print(str(error))
+        raise
