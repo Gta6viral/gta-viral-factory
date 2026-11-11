@@ -1,4 +1,3 @@
-
 import os
 import re
 import asyncio
@@ -64,7 +63,7 @@ def extraer_seccion(texto, nombre):
 
 
 # =====================================
-# GENERAR GUION SIN GOOGLE SEARCH
+# GENERAR GUION
 # =====================================
 
 def generar_guion():
@@ -79,82 +78,354 @@ def generar_guion():
     cliente = genai.Client(api_key=api_key)
 
     prompt = """
-Actúa como periodista y guionista especializado en GTA 6.
+Actúa como un investigador y guionista especializado en
+GTA 6 y en contenido corto viral de videojuegos.
 
-Escribe un vídeo ORIGINAL en español de España.
+Tu trabajo NO es explicar GTA 6 de forma básica.
+
+Tu trabajo es encontrar un detalle, conexión, comparación,
+pista o curiosidad que haga que una persona que ya conoce GTA
+quiera seguir viendo el vídeo.
 
 IMPORTANTE:
+
 No tienes que utilizar herramientas de búsqueda externas.
 Trabaja únicamente con información que conozcas con suficiente seguridad.
 
-REGLAS DE VERACIDAD:
-- No inventes noticias, fechas, cifras ni características.
-- No presentes rumores como hechos.
-- No confundas información de GTA 5 con GTA 6.
+========================================
+OBJETIVO PRINCIPAL
+========================================
+
+Crea UN SOLO TEMA FUERTE para un vídeo de 30-40 segundos.
+
+El tema debe responder a una pregunta como:
+
+"¿Cómo es posible que casi nadie se haya fijado en esto?"
+
+"¿Qué detalle del tráiler tiene más importancia de la que parece?"
+
+"¿Qué conexión con otro GTA se puede pasar por alto?"
+
+"¿Qué pequeño detalle cambia la forma de interpretar esta escena?"
+
+"¿Qué pista aparece en GTA 6 que puede tener una explicación?"
+
+NO hagas una lista de datos básicos.
+
+El vídeo debe girar alrededor de UNA curiosidad principal.
+
+========================================
+TEMAS QUE DEBES EVITAR
+========================================
+
+NO elijas como tema principal:
+
+- Que GTA 6 está ambientado en Vice City.
+- Que Lucia es protagonista.
+- Que Jason es protagonista.
+- Que GTA 6 es la nueva entrega.
+- Que el mapa será grande.
+- Que habrá vehículos.
+- Que habrá policía.
+- Que habrá animales.
+- Que Rockstar desarrolla el juego.
+- Que el juego está ambientado en Florida/Leonida.
+- Información general que cualquier persona que haya visto
+  un tráiler conoce.
+- Rankings genéricos.
+- "5 cosas que sabemos de GTA 6".
+- Noticias inventadas.
+- Rumores presentados como hechos.
+- Especulaciones sin ninguna pista que las apoye.
+
+Si el tema podría aparecer en un artículo introductorio
+sobre GTA 6, probablemente es demasiado básico.
+
+========================================
+TIPOS DE CONTENIDO PRIORITARIOS
+========================================
+
+Prioriza, en este orden:
+
+1. DETALLES OCULTOS
+Pequeños elementos visuales, escenas, objetos, comportamientos
+o situaciones que puedan pasar desapercibidos.
+
+2. REFERENCIAS
+Conexiones con GTA Vice City, GTA V, GTA IV, Red Dead Redemption
+u otros elementos conocidos de Rockstar cuando la conexión sea
+realmente razonable.
+
+3. COMPARACIONES
+Cambios o diferencias interesantes entre imágenes, escenas,
+tráilers o conceptos conocidos.
+
+4. DETALLES DEL MUNDO
+Elementos que revelen cómo podría funcionar el mundo del juego,
+siempre diferenciando claramente hechos de interpretación.
+
+5. PERSONAJES
+Detalles de personalidad, relaciones, comportamiento o escenas
+que permitan una interpretación interesante.
+
+6. ROCKSTAR
+Detalles documentados sobre decisiones, desarrollo o antecedentes
+de Rockstar relacionados con GTA 6.
+
+7. MISTERIOS Y TEORÍAS
+Solo si existe una pista concreta que permita plantearlas.
+Debes decir claramente que se trata de una teoría.
+
+========================================
+REGLAS DE VERACIDAD
+========================================
+
+Estas reglas son obligatorias:
+
+- No inventes información.
+- No inventes cifras.
+- No inventes fechas.
 - No inventes declaraciones de Rockstar.
-- No afirmes que algo es una novedad reciente si no puedes comprobarlo.
-- Prioriza información oficial y características confirmadas.
-- Si no estás seguro de un dato, no lo incluyas.
-- No inventes enlaces ni fuentes.
-- Es preferible una curiosidad confirmada que una noticia dudosa.
+- No inventes nombres.
+- No inventes características del juego.
+- No presentes rumores como hechos.
+- No presentes teorías como hechos.
+- No confundas GTA 5 con GTA 6.
+- No atribuyas a Rockstar algo que no haya confirmado.
+- No digas "Rockstar confirmó" si no tienes seguridad.
+- No inventes fuentes.
+- No inventes enlaces.
+- No afirmes que algo es una noticia reciente.
+- Si un dato no es suficientemente seguro, elimínalo.
 
-TEMAS POSIBLES:
-- Detalles confirmados de GTA 6.
-- Personajes conocidos.
-- Vice City y el estado de Leonida.
-- Información oficial publicada por Rockstar.
-- Comparaciones prudentes con GTA 5.
-- Detalles de los tráileres oficiales.
-- Curiosidades que estén respaldadas por información conocida.
+IMPORTANTE:
 
-ESTILO:
-- Español de España.
-- Energético, natural y entretenido.
+Una teoría puede aparecer, pero debe utilizar expresiones como:
+
+"Una teoría plantea que..."
+
+"Esto podría significar..."
+
+"Algunos fans creen que..."
+
+"Una posible explicación sería..."
+
+Nunca:
+
+"Esto demuestra que..."
+
+si realmente no está confirmado.
+
+========================================
+VALOR PARA EL ESPECTADOR
+========================================
+
+Antes de escribir el guion, piensa:
+
+¿Por qué alguien debería saber esto?
+
+Si la respuesta es simplemente:
+
+"porque es información sobre GTA 6",
+
+el tema es demasiado básico.
+
+El espectador debe terminar pensando:
+
+"Eso no lo había visto."
+
+o:
+
+"Ahora quiero volver a mirar el tráiler."
+
+o:
+
+"¿Y si realmente significa eso?"
+
+========================================
+ESTRUCTURA
+========================================
+
+GANCHO:
+
+Empieza directamente con el detalle.
+
+Ejemplos de estructura:
+
+"Hay un detalle en el tráiler de GTA 6 que probablemente
+te pasó completamente desapercibido."
+
+"Este personaje hace algo durante unos segundos y puede
+tener más importancia de la que parece."
+
+"Rockstar escondió una referencia en esta escena de GTA 6
+y es muy fácil pasarla por alto."
+
+No copies literalmente estos ejemplos.
+
+NARRACIÓN:
+
+- 30-40 segundos.
 - Ritmo rápido.
 - Frases cortas.
-- Nada de introducciones aburridas.
-- Que parezca un vídeo de un creador especializado.
-- Gancho potente desde la primera frase.
+- Explicación clara.
+- Una curiosidad principal.
+- Añade contexto suficiente para entenderla.
+- Termina con una pregunta que invite a comentar.
 
-ESTRUCTURA:
-- Gancho potente en los primeros 2 segundos.
-- Explicación interesante.
-- Tres detalles relevantes.
-- Cierre con una pregunta para generar comentarios.
+No llenes el vídeo con tres curiosidades independientes.
 
-DURACIÓN:
-Entre 30 y 40 segundos de narración.
+========================================
+CALIDAD DEL TEMA
+========================================
+
+Antes de devolver el resultado, haz internamente este filtro:
+
+PUNTUACIÓN DEL TEMA:
+
+Originalidad: 0-10
+Interés: 0-10
+Nivel de conocimiento requerido: 0-10
+Potencial para generar comentarios: 0-10
+
+Si el tema obtiene menos de 7 en originalidad,
+descártalo y busca otro.
+
+Si el tema es demasiado conocido,
+descártalo.
+
+Si el tema depende de un dato que no puedes verificar con seguridad,
+descártalo.
+
+========================================
+NO REPETIR
+========================================
+
+Evita producir constantemente el mismo tipo de vídeo.
+
+Alterna entre:
+
+- detalle visual
+- referencia
+- comparación
+- personaje
+- mundo
+- desarrollo
+- misterio
+- teoría
+
+No uses siempre "el tráiler esconde..." como estructura.
+
+========================================
+ESTILO
+========================================
+
+Español de España.
+
+Energético.
+
+Natural.
+
+Moderno.
+
+Como un creador especializado en GTA.
+
+Nada de lenguaje académico.
+
+Nada de frases artificiales.
+
+Nada de introducciones largas.
+
+Nada de:
+
+"Hola chicos, bienvenidos..."
+
+Empieza directamente con la curiosidad.
+
+========================================
+TÍTULO
+========================================
+
+El título debe crear curiosidad sin mentir.
+
+Ejemplos de estilo:
+
+"El detalle de GTA 6 que casi nadie vio"
+
+"Rockstar escondió esto en GTA 6"
+
+"Esta escena de GTA 6 tiene un detalle MUY raro"
+
+"¿Te fijaste en esto durante el tráiler?"
+
+No copies estos títulos literalmente.
+
+========================================
+ESCENAS
+========================================
+
+Propón tres escenas visuales.
+
+Deben estar relacionadas directamente con la narración.
+
+No pongas simplemente:
+
+"Imagen de GTA 6"
+
+Describe qué debería aparecer.
+
+Ejemplo:
+
+"Plano cercano del personaje mientras ocurre el detalle mencionado."
+
+"Imagen del tráiler mostrando el elemento concreto."
+
+"Comparación visual con una escena relacionada de GTA anterior."
+
+========================================
+FUENTES
+========================================
+
+No inventes fuentes.
+
+Como no se utiliza búsqueda web en esta generación,
+indica claramente que el contenido debe verificarse antes
+de publicarse.
+
+========================================
+FORMATO OBLIGATORIO
+========================================
 
 Devuelve EXACTAMENTE estos apartados:
 
 TITULO:
-Título llamativo.
+Título llamativo y curioso.
 
 GANCHO:
 Primera frase del vídeo.
 
 NARRACION:
-Texto completo que se escuchará.
-Entre 30 y 40 segundos aproximadamente.
+Texto completo de 30-40 segundos.
 
 ESCENAS:
-Tres ideas visuales relacionadas con lo que se cuenta.
+Tres escenas visuales.
 Una por línea.
 
 DESCRIPCION:
 Descripción breve para YouTube Shorts y TikTok.
 
 HASHTAGS:
-Entre cinco y ocho hashtags.
+Entre cinco y ocho hashtags relevantes.
 
 FUENTES:
-Indica que no se ha realizado una búsqueda web en esta generación.
-No inventes fuentes ni enlaces.
+Explicación breve indicando que no se ha utilizado búsqueda web
+en esta generación y que los datos deben verificarse antes
+de publicar.
 
 No añadas explicaciones fuera de estos apartados.
 """
 
-    print("Generando guion con Gemini...")
+    print("Generando guion especializado...")
     print("Modo gratuito: búsqueda web desactivada.")
 
     try:
@@ -205,7 +476,7 @@ No añadas explicaciones fuera de estos apartados.
         )
 
     if not titulo:
-        titulo = "GTA 6: DETALLES QUE DEBES CONOCER"
+        titulo = "GTA 6: EL DETALLE QUE CASI NADIE VIO"
 
     if not gancho:
         gancho = titulo
@@ -230,10 +501,11 @@ No añadas explicaciones fuera de estos apartados.
             "FUENTES Y VERIFICACION\n\n"
             "Esta generación no ha utilizado Google Search.\n"
             "El guion se ha creado con el conocimiento del modelo.\n"
-            "Comprueba los datos y las novedades antes de publicar.\n"
+            "El sistema prioriza curiosidades y detalles poco conocidos,\n"
+            "pero los datos deben comprobarse antes de publicar.\n"
         )
 
-    print("Guion generado correctamente.")
+    print("Guion especializado generado correctamente.")
 
     return (
         titulo,
@@ -351,8 +623,6 @@ def agrupar_palabras(palabras, duracion):
             "inicio": inicio,
             "final": final
         })
-
-    # Sincronizacion alternativa si no hay marcas de palabras
 
     if not resultado:
 
@@ -494,8 +764,6 @@ def preparar_imagen(ruta, destino):
             original
         ).convert("RGB")
 
-        # Fondo ampliado y desenfocado
-
         fondo = ImageOps.fit(
             imagen,
             (ANCHO, ALTO),
@@ -510,8 +778,6 @@ def preparar_imagen(ruta, destino):
             fondo
         ).enhance(0.38)
 
-        # Imagen principal completa, sin recortar
-
         principal = ImageOps.contain(
             imagen,
             (1000, 1550),
@@ -520,8 +786,6 @@ def preparar_imagen(ruta, destino):
 
         x = (ANCHO - principal.width) // 2
         y = (ALTO - principal.height) // 2
-
-        # Panel oscuro detrás de la imagen
 
         panel = Image.new(
             "RGBA",
@@ -805,8 +1069,6 @@ def crear_video(
         preset="ultrafast",
         threads=2
     )
-
-    # CERRAR ARCHIVOS
 
     video_final.close()
     fondo.close()
