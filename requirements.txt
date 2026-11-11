@@ -5,3 +5,4 @@ edge-tts
 Pillow
 yt-dlp
 imageio-ffmpeg==0.4.9
+setuptools
