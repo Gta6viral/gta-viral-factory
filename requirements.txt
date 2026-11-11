@@ -1,4 +1,6 @@
+
 google-genai
 moviepy==2.2.1
 edge-tts
 Pillow
+yt-dlp
