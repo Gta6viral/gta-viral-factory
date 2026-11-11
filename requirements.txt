@@ -4,3 +4,4 @@ moviepy==2.2.1
 edge-tts
 Pillow
 yt-dlp
+imageio-ffmpeg==0.4.9
